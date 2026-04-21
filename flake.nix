@@ -1,12 +1,16 @@
 {
   inputs = {
-    naersk.url = "github:nix-community/naersk/master";
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    naersk = {
+      url = "github:nix-community/naersk/master";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     utils.url = "github:numtide/flake-utils";
   };
 
   outputs =
     {
+      self,
       nixpkgs,
       utils,
       naersk,
@@ -21,7 +25,7 @@
         defaultPackage = naersk'.buildPackage {
           src = ./.;
           RUST_BACKTRACE = 1;
-          buildInputs = with pkgs;[
+          buildInputs = with pkgs; [
             openssl
             perl
           ];
