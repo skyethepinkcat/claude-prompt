@@ -25,10 +25,8 @@
         packages.default = naersk'.buildPackage {
           pname = "claude-prompt";
           src = ./.;
-          RUST_BACKTRACE = 1;
-          buildInputs = with pkgs; [
-            openssl
-            perl
+          nativeBuildInputs = with pkgs; [
+            git
           ];
 
           meta.mainProgram = "claude-prompt";

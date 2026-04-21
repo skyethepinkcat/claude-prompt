@@ -1,9 +1,7 @@
 use colored::ColoredString;
 use colored::Colorize;
-use git2::Repository;
 use serde_json::Value;
 use std::io;
-use to_be;
 use to_be::Truthy;
 
 fn result_is_truthy<T: Truthy, E>(inpt: Result<T, E>) -> bool {
@@ -25,19 +23,22 @@ fn path_section(ctx: &Value) -> Option<ColoredString> {
 }
 
 fn git_section(_ctx: &Value) -> Option<ColoredString> {
-    let repo = match Repository::open(".") {
-        Ok(repo) => repo,
-        Err(_) => return None,
-    };
+    use execute::Execute;
+    use std::process::{Command, Stdio};
 
-    let branch = match repo.head() {
-        Ok(b) => b,
-        Err(_) => return None,
-    };
+    let mut command = Command::new("git");
 
-    let out = format!("on  {}", branch.shorthand()?);
+    command.arg("branch");
+    command.arg("--show-current");
 
-    Some(out.normal())
+    command.stdout(Stdio::piped());
+    command.stderr(Stdio::piped());
+
+    let output = command.execute_output().ok()?;
+
+    let out = format!("on  {}", String::from_utf8(output.stdout).ok()?.trim()).normal();
+
+    Some(out)
 }
 
 fn model_section(ctx: &Value) -> Option<ColoredString> {
