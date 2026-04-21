@@ -10,10 +10,10 @@
 
   outputs =
     {
-      self,
       nixpkgs,
       utils,
       naersk,
+    ...
     }:
     utils.lib.eachDefaultSystem (
       system:

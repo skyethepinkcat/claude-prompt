@@ -210,7 +210,7 @@ fn weekly_session(ctx: &ClaudeContext) -> Option<ColoredString> {
         format!(
             " {}% weekly usage until {}",
             weekly.used_percentage,
-            resets_at.format("%b %-d %H %M")
+            resets_at.format("%b %-d")
         )
         .bright_red()
     } else {
