@@ -1,112 +1,17 @@
 use colored::ColoredString;
 use colored::Colorize;
 use git2::Repository;
-use serde::Deserialize;
+use serde_json::Value;
 use std::io;
 
-#[derive(Deserialize, Debug)]
-struct Model {
-    id: String,
-    display_name: String,
-}
-
-#[derive(Deserialize, Debug)]
-struct Workspace {
-    current_dir: String,
-    project_dir: String,
-    added_dirs: Vec<String>,
-    git_worktree: Option<String>,
-}
-
-#[derive(Deserialize, Debug)]
-struct OutputStyle {
-    name: String,
-}
-
-#[derive(Deserialize, Debug)]
-struct Cost {
-    total_cost_usd: f64,
-    total_duration_ms: u64,
-    total_api_duration_ms: u64,
-    total_lines_added: u64,
-    total_lines_removed: u64,
-}
-
-#[derive(Deserialize, Debug)]
-struct CurrentUsage {
-    input_tokens: u64,
-    output_tokens: u64,
-    cache_creation_input_tokens: u64,
-    cache_read_input_tokens: u64,
-}
-
-#[derive(Deserialize, Debug)]
-struct ContextWindow {
-    total_input_tokens: u64,
-    total_output_tokens: u64,
-    context_window_size: u64,
-    used_percentage: u64,
-    remaining_percentage: u64,
-    current_usage: CurrentUsage,
-}
-
-#[derive(Deserialize, Debug)]
-struct RateLimitWindow {
-    used_percentage: f64,
-    resets_at: i64,
-}
-
-#[derive(Deserialize, Debug)]
-struct RateLimits {
-    five_hour: RateLimitWindow,
-    seven_day: RateLimitWindow,
-}
-
-#[derive(Deserialize, Debug)]
-struct Vim {
-    mode: String,
-}
-
-#[derive(Deserialize, Debug)]
-struct Agent {
-    name: String,
-}
-
-#[derive(Deserialize, Debug)]
-struct Worktree {
-    name: String,
-    path: String,
-    branch: String,
-    original_cwd: String,
-    original_branch: String,
-}
-
-#[derive(Deserialize, Debug)]
-struct ClaudeContext {
-    cwd: String,
-    session_id: String,
-    session_name: String,
-    transcript_path: String,
-    model: Model,
-    workspace: Workspace,
-    version: String,
-    output_style: OutputStyle,
-    cost: Cost,
-    context_window: ContextWindow,
-    exceeds_200k_tokens: bool,
-    rate_limits: RateLimits,
-    vim: Option<Vim>,
-    agent: Option<Agent>,
-    worktree: Option<Worktree>,
-}
-
-fn path_section(ctx: &ClaudeContext) -> Option<ColoredString> {
-    let path = ctx.cwd.split("/").last()?;
+fn path_section(ctx: &Value) -> Option<ColoredString> {
+    let cwd = ctx["cwd"].as_str()?;
+    let path = cwd.split("/").last()?;
 
     Some(path.clear())
 }
 
-fn git_section(_ctx: &ClaudeContext) -> Option<ColoredString> {
+fn git_section(_ctx: &Value) -> Option<ColoredString> {
     let repo = match Repository::open(".") {
         Ok(repo) => repo,
         Err(_) => return None,
@@ -122,8 +27,8 @@ fn git_section(_ctx: &ClaudeContext) -> Option<ColoredString> {
     Some(out.normal())
 }
 
-fn model_section(ctx: &ClaudeContext) -> Option<ColoredString> {
-    let model = &ctx.model.display_name;
+fn model_section(ctx: &Value) -> Option<ColoredString> {
+    let model = ctx["model"]["display_name"].as_str()?;
 
     let out: ColoredString;
     if model.to_lowercase() == "opus" {
@@ -137,7 +42,7 @@ fn model_section(ctx: &ClaudeContext) -> Option<ColoredString> {
     Some(out)
 }
 
-fn caveman_section(_: &ClaudeContext) -> Option<ColoredString> {
+fn caveman_section(_: &Value) -> Option<ColoredString> {
     use std::path::PathBuf;
 
     let home = std::env::home_dir()?.display().to_string();
@@ -159,22 +64,27 @@ fn caveman_section(_: &ClaudeContext) -> Option<ColoredString> {
     Some(format!("[CAVEMAN{}]", modestring).normal())
 }
 
-fn session_section(ctx: &ClaudeContext) -> Option<ColoredString> {
+fn session_section(ctx: &Value) -> Option<ColoredString> {
     use chrono::{DateTime, Local};
-    let five_hour = &ctx.rate_limits.five_hour;
-    let resets_at: DateTime<Local> = DateTime::from_timestamp(five_hour.resets_at, 0)?.into();
+    let five_hour = &ctx["rate_limits"]["five_hour"];
+    let resets_at_int = match five_hour["resets_at"].as_i64() {
+        Some(i) => i,
+        None => return Some("[Waiting for API...]".yellow()),
+    };
+    let resets_at: DateTime<Local> = DateTime::from_timestamp(resets_at_int, 0)?.into();
+    let used_percentage = five_hour["used_percentage"].as_f64()?;
 
-    let mut out_str = format!("{}% usage", five_hour.used_percentage);
+    let mut out_str = format!("{}% usage", used_percentage);
 
-    if five_hour.used_percentage > 25.0 {
+    if used_percentage > 25.0 {
         out_str = format!("{} until {}", out_str, resets_at.format("%H:%M"));
     }
 
     out_str = format!("[{}]", out_str);
 
-    let out = if five_hour.used_percentage >= 75.0 {
+    let out = if used_percentage >= 75.0 {
         out_str.bright_red()
-    } else if five_hour.used_percentage >= 50.0 {
+    } else if used_percentage >= 50.0 {
         out_str.yellow()
     } else {
         out_str.normal()
@@ -183,11 +93,12 @@ fn session_section(ctx: &ClaudeContext) -> Option<ColoredString> {
     Some(out)
 }
 
-fn weekly_session(ctx: &ClaudeContext) -> Option<ColoredString> {
+fn weekly_session(ctx: &Value) -> Option<ColoredString> {
     use chrono::{DateTime, Datelike, Local, Timelike};
     let now: DateTime<Local> = Local::now();
-    let weekly = &ctx.rate_limits.seven_day;
-    let resets_at: DateTime<Local> = DateTime::from_timestamp(weekly.resets_at, 0)?.into();
+    let weekly = &ctx["rate_limits"]["seven_day"];
+    let resets_at: DateTime<Local> =
+        DateTime::from_timestamp(weekly["resets_at"].as_i64()?, 0)?.into();
     let week_percentage: f64 = ((((now.weekday().num_days_from_sunday() * 86400)
         + (now.hour() * 3600)
         + (now.minute() * 60))
@@ -195,10 +106,11 @@ fn weekly_session(ctx: &ClaudeContext) -> Option<ColoredString> {
         / (7 * 86400))
         .into();
 
-    let out = if week_percentage < weekly.used_percentage {
+    let used_percentage = weekly["used_percentage"].as_f64()?;
+    let out = if week_percentage < used_percentage {
         format!(
             " {}% weekly usage until {}",
-            weekly.used_percentage,
+            used_percentage,
             resets_at.format("%b %-d")
         )
         .bright_red()
@@ -219,19 +131,10 @@ fn push_if_valid(array: &mut Vec<String>, input: Option<ColoredString>) {
 }
 
 fn get_prompt() -> io::Result<Vec<String>> {
-    use std::io::{Read, Write};
-    use std::fs::File;
-    let mut output = File::create("prompt.log")?;
-    let mut stdin = io::stdin();
-    let mut buffer: String = String::new();
-    stdin.read_to_string(&mut buffer)?;
-    write!(output, "{}", buffer)?;
-    let ctx: ClaudeContext =
-        serde_json::from_str(&buffer).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+    let stdin = io::stdin();
+    let ctx: serde_json::Value = serde_json::from_reader(stdin)?;
 
-    let mut sections: Vec<Vec<String>> = Vec::new();
-    sections.push(Vec::new());
-    sections.push(Vec::new());
+    let mut sections: Vec<Vec<String>> = vec![vec![], vec![]];
 
     push_if_valid(&mut sections[0], weekly_session(&ctx));
     push_if_valid(&mut sections[1], path_section(&ctx));
@@ -248,9 +151,12 @@ fn get_prompt() -> io::Result<Vec<String>> {
 }
 
 fn main() -> io::Result<()> {
+    // colored incorrectly assumes that claude can't handle colored strings, so we need to force it.
+    colored::control::set_override(true);
+
     let prompts = match get_prompt() {
         Ok(s) => s,
-        Err(e) => Vec::from([String::from("Loading prompt..."), e.to_string()]),
+        Err(e) => vec![String::from("Prompt Error"), e.to_string()],
     };
 
     for p in prompts {
