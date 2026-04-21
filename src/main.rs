@@ -4,14 +4,12 @@ use git2::Repository;
 use serde::Deserialize;
 use std::io;
 
-#[allow(dead_code)]
 #[derive(Deserialize, Debug)]
 struct Model {
     id: String,
     display_name: String,
 }
 
-#[allow(dead_code)]
 #[derive(Deserialize, Debug)]
 struct Workspace {
     current_dir: String,
@@ -20,13 +18,11 @@ struct Workspace {
     git_worktree: Option<String>,
 }
 
-#[allow(dead_code)]
 #[derive(Deserialize, Debug)]
 struct OutputStyle {
     name: String,
 }
 
-#[allow(dead_code)]
 #[derive(Deserialize, Debug)]
 struct Cost {
     total_cost_usd: f64,
@@ -36,7 +32,6 @@ struct Cost {
     total_lines_removed: u64,
 }
 
-#[allow(dead_code)]
 #[derive(Deserialize, Debug)]
 struct CurrentUsage {
     input_tokens: u64,
@@ -45,7 +40,6 @@ struct CurrentUsage {
     cache_read_input_tokens: u64,
 }
 
-#[allow(dead_code)]
 #[derive(Deserialize, Debug)]
 struct ContextWindow {
     total_input_tokens: u64,
@@ -56,33 +50,28 @@ struct ContextWindow {
     current_usage: CurrentUsage,
 }
 
-#[allow(dead_code)]
 #[derive(Deserialize, Debug)]
 struct RateLimitWindow {
     used_percentage: f64,
     resets_at: i64,
 }
 
-#[allow(dead_code)]
 #[derive(Deserialize, Debug)]
 struct RateLimits {
     five_hour: RateLimitWindow,
     seven_day: RateLimitWindow,
 }
 
-#[allow(dead_code)]
 #[derive(Deserialize, Debug)]
 struct Vim {
     mode: String,
 }
 
-#[allow(dead_code)]
 #[derive(Deserialize, Debug)]
 struct Agent {
     name: String,
 }
 
-#[allow(dead_code)]
 #[derive(Deserialize, Debug)]
 struct Worktree {
     name: String,
@@ -91,7 +80,7 @@ struct Worktree {
     original_cwd: String,
     original_branch: String,
 }
-#[allow(dead_code)]
+
 #[derive(Deserialize, Debug)]
 struct ClaudeContext {
     cwd: String,
@@ -230,9 +219,15 @@ fn push_if_valid(array: &mut Vec<String>, input: Option<ColoredString>) {
 }
 
 fn get_prompt() -> io::Result<Vec<String>> {
-    let stdin = io::stdin();
-    let ctx: ClaudeContext = serde_json::from_reader(stdin)
-        .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+    use std::io::{Read, Write};
+    use std::fs::File;
+    let mut output = File::create("prompt.log")?;
+    let mut stdin = io::stdin();
+    let mut buffer: String = String::new();
+    stdin.read_to_string(&mut buffer)?;
+    write!(output, "{}", buffer)?;
+    let ctx: ClaudeContext =
+        serde_json::from_str(&buffer).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
 
     let mut sections: Vec<Vec<String>> = Vec::new();
     sections.push(Vec::new());
@@ -245,7 +240,11 @@ fn get_prompt() -> io::Result<Vec<String>> {
     push_if_valid(&mut sections[1], caveman_section(&ctx));
     push_if_valid(&mut sections[1], session_section(&ctx));
 
-    Ok(sections.iter().filter(|s| !s.is_empty()).map(|s| s.join(" ")).collect())
+    Ok(sections
+        .iter()
+        .filter(|s| !s.is_empty())
+        .map(|s| s.join(" "))
+        .collect())
 }
 
 fn main() -> io::Result<()> {
@@ -254,11 +253,9 @@ fn main() -> io::Result<()> {
         Err(e) => Vec::from([String::from("Loading prompt..."), e.to_string()]),
     };
 
-
     for p in prompts {
         println!("{}", p);
     }
-
 
     Ok(())
 }
