@@ -121,6 +121,20 @@ fn weekly_session(ctx: &Value) -> Option<ColoredString> {
     Some(out)
 }
 
+fn context_section(ctx: &Value) -> Option<ColoredString> {
+    let used_percentage = ctx["context_window"]["used_percentage"].as_u64()?;
+
+    if used_percentage > 75 {
+        Some(format!("[ {}% context]", used_percentage).bright_red())
+    } else if used_percentage > 50 {
+        Some(format!("[ {}% context]", used_percentage).yellow())
+    } else if used_percentage > 25 {
+        Some(format!("[{}% context]", used_percentage).normal())
+    } else {
+        None
+    }
+}
+
 fn push_if_valid(array: &mut Vec<String>, input: Option<ColoredString>) {
     let string = match input {
         Some(s) => s,
@@ -142,6 +156,7 @@ fn get_prompt() -> io::Result<Vec<String>> {
     push_if_valid(&mut sections[1], model_section(&ctx));
     push_if_valid(&mut sections[1], caveman_section(&ctx));
     push_if_valid(&mut sections[1], session_section(&ctx));
+    push_if_valid(&mut sections[1], context_section(&ctx));
 
     Ok(sections
         .iter()

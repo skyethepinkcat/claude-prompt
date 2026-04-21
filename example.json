@@ -28,7 +28,7 @@
     "total_input_tokens": 15234,
     "total_output_tokens": 4521,
     "context_window_size": 200000,
-    "used_percentage": 8,
+    "used_percentage": 51,
     "remaining_percentage": 92,
     "current_usage": {
       "input_tokens": 8500,
