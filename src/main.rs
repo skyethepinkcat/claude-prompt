@@ -3,6 +3,19 @@ use colored::Colorize;
 use git2::Repository;
 use serde_json::Value;
 use std::io;
+use to_be;
+use to_be::Truthy;
+
+fn result_is_truthy<T: Truthy, E>(inpt: Result<T, E>) -> bool {
+    match inpt {
+        Ok(x) => x.is_truey(),
+        Err(_) => false,
+    }
+}
+
+fn is_verbose() -> bool {
+    result_is_truthy(std::env::var("CLAUDE_VERBOSE_STATUS"))
+}
 
 fn path_section(ctx: &Value) -> Option<ColoredString> {
     let cwd = ctx["cwd"].as_str()?;
@@ -35,6 +48,8 @@ fn model_section(ctx: &Value) -> Option<ColoredString> {
         out = format!("[ {}]", model).red();
     } else if model.to_lowercase() == "haiku" {
         out = format!("[ {}]", model).yellow();
+    } else if is_verbose() {
+        out = format!("[{}]", model).normal();
     } else {
         return None;
     }
@@ -82,18 +97,16 @@ fn session_section(ctx: &Value) -> Option<ColoredString> {
 
     out_str = format!("[{}]", out_str);
 
-    let out = if used_percentage >= 75.0 {
+    Some(if used_percentage >= 75.0 {
         out_str.bright_red()
     } else if used_percentage >= 50.0 {
         out_str.yellow()
     } else {
         out_str.normal()
-    };
-
-    Some(out)
+    })
 }
 
-fn weekly_session(ctx: &Value) -> Option<ColoredString> {
+fn weekly_section(ctx: &Value) -> Option<ColoredString> {
     use chrono::{DateTime, Datelike, Local, Timelike};
     let now: DateTime<Local> = Local::now();
     let weekly = &ctx["rate_limits"]["seven_day"];
@@ -115,7 +128,7 @@ fn weekly_session(ctx: &Value) -> Option<ColoredString> {
         )
         .bright_red()
     } else {
-        "".normal()
+        return None;
     };
 
     Some(out)
@@ -128,7 +141,7 @@ fn context_section(ctx: &Value) -> Option<ColoredString> {
         Some(format!("[ {}% context]", used_percentage).bright_red())
     } else if used_percentage > 50 {
         Some(format!("[ {}% context]", used_percentage).yellow())
-    } else if used_percentage > 25 {
+    } else if used_percentage > 25 || is_verbose() {
         Some(format!("[{}% context]", used_percentage).normal())
     } else {
         None
@@ -150,7 +163,7 @@ fn get_prompt() -> io::Result<Vec<String>> {
 
     let mut sections: Vec<Vec<String>> = vec![vec![], vec![]];
 
-    push_if_valid(&mut sections[0], weekly_session(&ctx));
+    push_if_valid(&mut sections[0], weekly_section(&ctx));
     push_if_valid(&mut sections[1], path_section(&ctx));
     push_if_valid(&mut sections[1], git_section(&ctx));
     push_if_valid(&mut sections[1], model_section(&ctx));

@@ -18,6 +18,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c08606f8c3cbf4ce6ec8e28fb0014a2c086708fe954eaa885384a6165172e7e8"
 
 [[package]]
+name = "base-traits"
+version = "0.0.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9bb2de59cca22f51f3301a09c549b0b4a32f56e8a007d0d44b02a1ce42975b37"
+
+[[package]]
 name = "bitflags"
 version = "2.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -70,6 +76,7 @@ dependencies = [
  "serde",
  "serde_json",
  "ssh2",
+ "to-be",
 ]
 
 [[package]]
@@ -601,6 +608,15 @@ checksum = "c8323304221c2a851516f22236c5722a72eaa19749016521d6dff0824447d96d"
 dependencies = [
  "displaydoc",
  "zerovec",
+]
+
+[[package]]
+name = "to-be"
+version = "0.0.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "90dca83c0c16c3cf5bd2b6bd841f793a710dbef29c45c99b22d87e5989dac5ad"
+dependencies = [
+ "base-traits",
 ]
 
 [[package]]
