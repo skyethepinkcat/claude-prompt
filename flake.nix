@@ -22,7 +22,7 @@
         naersk' = pkgs.callPackage naersk { };
       in
       {
-        defaultPackage = naersk'.buildPackage {
+        packages.default = naersk'.buildPackage {
           src = ./.;
           RUST_BACKTRACE = 1;
           buildInputs = with pkgs; [
