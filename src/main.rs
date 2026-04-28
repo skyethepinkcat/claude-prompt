@@ -90,7 +90,7 @@ fn session_section(ctx: &Value) -> Option<ColoredString> {
     let resets_at: DateTime<Local> = DateTime::from_timestamp(resets_at_int, 0)?.into();
     let used_percentage = five_hour["used_percentage"].as_f64()?;
 
-    let mut out_str = format!("{}% usage", used_percentage);
+    let mut out_str = format!("{}% usage", used_percentage.floor());
 
     if used_percentage > 25.0 {
         out_str = format!("{} until {}", out_str, resets_at.format("%H:%M"));
@@ -124,7 +124,7 @@ fn weekly_section(ctx: &Value) -> Option<ColoredString> {
     let out = if week_percentage < used_percentage {
         format!(
             " {}% weekly usage until {}",
-            used_percentage,
+            used_percentage.floor(),
             resets_at.format("%b %-d")
         )
         .bright_red()
