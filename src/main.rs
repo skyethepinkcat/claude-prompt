@@ -121,7 +121,7 @@ fn weekly_section(ctx: &Value) -> Option<ColoredString> {
         .into();
 
     let used_percentage = weekly["used_percentage"].as_f64()?;
-    let out = if week_percentage < used_percentage {
+    let out = if week_percentage > used_percentage {
         format!(
             " {}% weekly usage until {}",
             used_percentage.floor(),

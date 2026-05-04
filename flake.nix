@@ -5,45 +5,49 @@
       url = "github:nix-community/naersk/master";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    utils.url = "github:numtide/flake-utils";
+    flake-parts.url = "github:hercules-ci/flake-parts";
   };
 
   outputs =
-    {
-      nixpkgs,
-      utils,
-      naersk,
-    ...
-    }:
-    utils.lib.eachDefaultSystem (
-      system:
-      let
-        pkgs = import nixpkgs { inherit system; };
-        naersk' = pkgs.callPackage naersk { };
-      in
-      {
-        packages.default = naersk'.buildPackage {
-          pname = "claude-prompt";
-          src = ./.;
-          nativeBuildInputs = with pkgs; [
-            git
-          ];
+    inputs@{ flake-parts, naersk, nixpkgs, ... }:
+    flake-parts.lib.mkFlake { inherit inputs; } {
+      imports = [ inputs.flake-parts.flakeModules.easyOverlay ];
 
-          meta.mainProgram = "claude-prompt";
-        };
-        devShell =
-          with pkgs;
-          mkShell {
-            buildInputs = [
-              cargo
-              rustc
-              rustfmt
-              pre-commit
-              rustPackages.clippy
-              rust-analyzer
-            ];
-            RUST_SRC_PATH = rustPlatform.rustLibSrc;
+      systems = [
+        "x86_64-linux"
+        "aarch64-linux"
+        "x86_64-darwin"
+        "aarch64-darwin"
+      ];
+
+      perSystem =
+        { config, pkgs, system, ... }:
+        let
+          naersk' = pkgs.callPackage naersk { };
+        in
+        {
+          overlayAttrs = { inherit (config.packages) default; };
+
+          packages.default = naersk'.buildPackage {
+            pname = "claude-prompt";
+            src = ./.;
+            nativeBuildInputs = with pkgs; [ git ];
+            meta.mainProgram = "claude-prompt";
           };
-      }
-    );
+
+          devShells.default =
+            with pkgs;
+            mkShell {
+              buildInputs = [
+                cargo
+                rustc
+                rustfmt
+                pre-commit
+                rustPackages.clippy
+                rust-analyzer
+              ];
+              RUST_SRC_PATH = rustPlatform.rustLibSrc;
+            };
+        };
+    };
 }
