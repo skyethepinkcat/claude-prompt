@@ -90,7 +90,7 @@ fn session_section(ctx: &Value) -> Option<ColoredString> {
     let resets_at: DateTime<Local> = DateTime::from_timestamp(resets_at_int, 0)?.into();
     let used_percentage = five_hour["used_percentage"].as_f64()?;
 
-    let mut out_str = format!("{}% usage", used_percentage.floor());
+    let mut out_str = format!("{}% usage remaining", used_percentage.floor());
 
     if used_percentage > 25.0 {
         out_str = format!("{} until {}", out_str, resets_at.format("%H:%M"));
@@ -113,18 +113,18 @@ fn weekly_section(ctx: &Value) -> Option<ColoredString> {
     let weekly = &ctx["rate_limits"]["seven_day"];
     let resets_at: DateTime<Local> =
         DateTime::from_timestamp(weekly["resets_at"].as_i64()?, 0)?.into();
-    let week_percentage: f64 = ((((now.weekday().num_days_from_sunday() * 86400)
-        + (now.hour() * 3600)
-        + (now.minute() * 60))
-        * 100) // Multiply by 100 here to get an integer result and never touch floating points.
-        / (7 * 86400))
-        .into();
+    let started_at: DateTime<Local> = resets_at - chrono::TimeDelta::weeks(1);
+
+    let week_percentage: f64 = (now.signed_duration_since(started_at).as_seconds_f64()) / (resets_at.signed_duration_since(started_at).as_seconds_f64());
+
+    #[cfg(debug_assertions)]
+    eprintln!("Calculated Week Percentage: {}", week_percentage);
 
     let used_percentage = weekly["used_percentage"].as_f64()?;
     let out = if week_percentage > used_percentage {
         format!(
-            " {}% weekly usage until {}",
-            used_percentage.floor(),
+            " {}% usage remaining until {}",
+            100.0 - used_percentage.floor(),
             resets_at.format("%b %-d")
         )
         .bright_red()
