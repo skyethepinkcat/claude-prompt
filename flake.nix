@@ -29,7 +29,7 @@
           overlayAttrs = { inherit (config.packages) default; };
 
           packages.default = naersk'.buildPackage {
-            pname = "claude-prompt";
+            pname = "skye-claude-prompt";
             src = ./.;
             nativeBuildInputs = with pkgs; [ git ];
             meta.mainProgram = "claude-prompt";
