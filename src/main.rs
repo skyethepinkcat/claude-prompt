@@ -46,7 +46,7 @@ fn model_section(ctx: &Value) -> Option<ColoredString> {
 
     let out: ColoredString;
     if model.to_lowercase().contains("opus") {
-        out = format!("[ {}]", model).red();
+        out = format!("[ {}]", model).yellow();
     } else if model.to_lowercase().contains("haiku") {
         out = format!("[ {}]", model).yellow();
     } else if is_verbose() {
