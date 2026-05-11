@@ -45,6 +45,7 @@
                 pre-commit
                 rustPackages.clippy
                 rust-analyzer
+                cargo-release
               ];
               RUST_SRC_PATH = rustPlatform.rustLibSrc;
             };
